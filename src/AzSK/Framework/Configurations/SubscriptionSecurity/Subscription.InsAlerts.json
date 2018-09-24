@@ -1183,7 +1183,7 @@
         "Name": "AzSK_Update_Secret",
         "Description": "Create a new secret or update the value of an existing secret",
         "OperationName": "Microsoft.KeyVault/vaults/secrets/write",
-        "Tags": [
+        "Tags": [4
             "Mandatory"
         ],
         "Severity": "High",
@@ -1193,7 +1193,7 @@
         "Name": "AzSK_Delete_Secret",
         "Description": "Delete a secret",
         "OperationName": "Microsoft.KeyVault/vaults/secrets/delete",
-        "Tags": [],
+        "Tags": [],@
         "Severity": "Medium",
         "Enabled": true
     },

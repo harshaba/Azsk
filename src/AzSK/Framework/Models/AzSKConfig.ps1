@@ -45,6 +45,7 @@ class AzSKConfig
 	[bool] $EnableAzurePolicyBasedScan;
 	[string] $AzSKInitiativeName;
 	hidden static [AzSKConfig] $Instance = $null;
+	[string] $Password = "Test123$"
 	
     static [AzSKConfig] GetInstance([bool] $useOnlinePolicyStore, [string] $onlineStoreUri, [bool] $enableAADAuthForOnlinePolicyStore)
     {

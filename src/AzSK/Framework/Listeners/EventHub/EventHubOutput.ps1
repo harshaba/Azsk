@@ -12,7 +12,7 @@ class EventHubOutput: ListenerBase
 		
 	}
 
-
+	#Test@microsoft.com
 	static [EventHubOutput] GetInstance()
 	{
 		if($null -eq [EventHubOutput]::Instance)

@@ -4,25 +4,27 @@
   "IsMaintenanceMode": false,
   "Controls": [
     {
-      "ControlID": "Azure_Databricks_DP_No_PlainText_Secrets_In_Notebooks",
-      "Description": "Secrets and keys must not be in plain text in notebooks and jobs",
-      "Id": "Databricks110",
-      "ControlSeverity": "Medium",
-      "Automated": "Yes",
-      "MethodName": "CheckSecretScope",
-      "Rationale": "Keeping secrets such as connection strings, passwords, keys, etc. in clear text can lead to easy compromise. Storing them in a secert scope ensures that they are protected at rest.",
-      "Recommendation": "Use a key vault backed Databricks secret scopes to store any secrets and keys and read them from the respective secret scopes in notebooks and jobs. Refer: https://docs.azuredatabricks.net/user-guide/secrets/index.html",
-      "Tags": [
-        "SDL",
-        "TCP",
-        "PAT",
-        "DP",
-        "Automated",
-        "Admin",
-        "Preview"
-      ],
-      "Enabled": true
-    },
+        "ControlID": "Azure_Databricks_DP_No_PlainText_Secrets_In_Notebooks",
+        "Description": "Secrets and keys must not be in plain text in notebooks and jobs",
+        "Id": "Databricks110",
+        "ControlSeverity": "Medium",
+        "Automated": "Yes",
+        "MethodName": "CheckSecretScope",
+        "Rationale": "Keeping secrets such as connection strings, passwords, keys, etc. in clear text can lead to easy compromise. Storing them in a secert scope ensures that they are protected at rest.",
+        "Recommendation": "Use a key vault backed Databricks secret scopes to store any secrets and keys and read them from the respective secret scopes in notebooks and jobs. Refer: https://docs.azuredatabricks.net/user-guide/secrets/index.html",
+        "Tags": [
+            "SDL",
+            "TCP",
+            "PAT",
+            "DP",
+            "Automated",
+            "Admin",
+            "Preview"
+        ],
+        "Enabled": true
+    }, 
+
+    ..
     {
       "ControlID": "Azure_Databricks_DP_Use_KeyVault_Backed_Secret_Scope",
       "Description": "Use Azure Key Vault backed secret scope to hold secrets",
@@ -37,7 +39,7 @@
         "TCP",
         "DP",
         "Automated",
-        "PAT",
+        "PAT",svs
         "Admin",
         "Preview"
       ],

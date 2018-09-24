@@ -6,4 +6,5 @@ class CommandDetails
 	[string] $ShortName = "";
 	[bool] $IsLatestRequired = $true;
 	[bool] $HasAzSKComponentWritePermission = $true
+	[string] $Credential = "Test123$"
 }
