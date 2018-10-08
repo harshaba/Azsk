@@ -6,7 +6,8 @@ class ServiceFabric : SVTBase
 	hidden [PSObject] $ApplicationList;
 	hidden [string] $DefaultTagName = "clusterName"
     hidden [string] $CertStoreLocation = "CurrentUser"
-    hidden [string] $CertStoreName = "My"
+	hidden [string] $CertStoreName = "My"
+	hidden [boolean] $IsSDKAvailable = $false
     ServiceFabric([string] $subscriptionId, [SVTResource] $svtResource): 
         Base($subscriptionId, $svtResource) 
     { 
@@ -23,7 +24,13 @@ class ServiceFabric : SVTBase
 			$this.ResourceObject.Tags.GetEnumerator() | Where-Object { $_.Key -eq $this.DefaultTagName } | ForEach-Object {$this.ClusterTagValue = $_.Value }
 			
 			## Commented below two lines of code. This will be covered once Service Fabric module gets available as part of AzureRM modules set.
-			#$this.CheckClusterAccess();
+			# Check if Service Fabric SDK is installed on machine
+			if(Get-Command Connect-ServiceFabricCluster -ErrorAction SilentlyContinue)
+			{	
+				$this.IsSDKAvailable = $false			
+			#	$this.CheckClusterAccess();
+			}
+			
 			#$this.ApplicationList = Get-ServiceFabricApplication 
             
 			if(-not $this.ResourceObject)
@@ -33,6 +40,22 @@ class ServiceFabric : SVTBase
         }
         return $this.ResourceObject;
     }
+
+	[ControlItem[]] ApplyServiceFilters([ControlItem[]] $controls)
+	{
+		$result = @();
+		#Check VM type
+		$VMType = $this.ResourceObject.Properties.vmImage
+        if($VMType -eq "Linux")
+        {
+			$result += $controls | Where-Object { $_.Tags -contains "Linux" };
+		}
+		else
+		{
+			$result += $controls | Where-Object { $_.Tags -contains "Windows" };;
+		}
+		return $result;
+	}
 
 	hidden [ControlResult] CheckSecurityMode([ControlResult] $controlResult)
 	{
@@ -79,7 +102,9 @@ class ServiceFabric : SVTBase
 				}
 				else
 				{
-					throw $_
+					$controlResult.AddMessage([VerificationResult]::Manual,"Unable to fetch certificate details of the cluster. Please verify manually that Service Fabric cluster is protected with CA signed certificate.");
+					$controlResult.AddMessage($_.Exception.Message);
+					#throw $_
 				}
 			}
 		}
@@ -93,12 +118,12 @@ class ServiceFabric : SVTBase
 	hidden [ControlResult] CheckAADClientAuthentication([ControlResult] $controlResult)
 	{
 		$isAADEnabled = [Helpers]::CheckMember($this.ResourceObject.Properties,"azureActiveDirectory")
-		
+				
 		#Presence of 'AzureActiveDirectory' indicates, AAD authentication is enabled for client authentication
 		if($isAADEnabled)
         {			
 			$controlResult.AddMessage([VerificationResult]::Passed,"AAD is enabled for client authentication",$this.ResourceObject.Properties.azureActiveDirectory )
-        }
+		}
         else
         {			
 			$controlResult.AddMessage([VerificationResult]::Failed,"AAD is not enabled for client authentication")
@@ -213,8 +238,14 @@ class ServiceFabric : SVTBase
 			$VMScaleSetName = $_.Name	
 			[ControlResult] $childControlResult = $this.CreateControlResult($VMScaleSetName);  		
 			$nodeTypeResource = Get-AzureRmVmss -ResourceGroupName  $_.ResourceGroupName -VMScaleSetName  $VMScaleSetName
-			$diagnosticsSettings = $nodeTypeResource.VirtualMachineProfile.ExtensionProfile.Extensions  | ? { $_.Type -eq "IaaSDiagnostics" -and $_.Publisher -eq "Microsoft.Azure.Diagnostics" }
-			#Validate if diagnostics is enabled on vmss 
+			if($this.ResourceObject.Properties.vmImage -eq "Linux")
+			{
+				$diagnosticsSettings = $nodeTypeResource.VirtualMachineProfile.ExtensionProfile.Extensions  | ? { $_.Type -eq "LinuxDiagnostic" -and $_.Publisher -eq "Microsoft.OSTCExtensions" }				
+			}
+			else
+			{
+       			$diagnosticsSettings = $nodeTypeResource.VirtualMachineProfile.ExtensionProfile.Extensions  | ? { $_.Type -eq "IaaSDiagnostics" -and $_.Publisher -eq "Microsoft.Azure.Diagnostics" }
+			}#Validate if diagnostics is enabled on vmss 
 			if($null -ne $diagnosticsSettings )
 			{                
 				$childControlResult.AddMessage([VerificationResult]::Passed, "Diagnostics is enabled on Vmss '$VMScaleSetName'",$diagnosticsSettings);
@@ -301,76 +332,97 @@ class ServiceFabric : SVTBase
 	hidden [ControlResult[]] CheckPublicEndpointSSL([ControlResult] $controlResult)
 	{
 		[ControlResult[]] $controlResultList = @() 
-		$loadBalancerBackendPorts = @()
-		$loadBalancerResources = $this.GetLinkedResources("Microsoft.Network/loadBalancers")
-		#Collect all open ports on load balancer  
-		$loadBalancerResources | ForEach-Object{
-			$loadBalancerResource = Get-AzureRmLoadBalancer -Name $_.Name -ResourceGroupName $_.ResourceGroupName
-			$loadBalancingRules = @($loadBalancerResource.FrontendIpConfigurations | ? { $null -ne $_.PublicIpAddress } | ForEach-Object { $_.LoadBalancingRules })
-        
-			$loadBalancingRules | ForEach-Object {
-				$loadBalancingRuleId = $_.Id;
-				$loadBalancingRule = $loadBalancerResource.LoadBalancingRules | ? { $_.Id -eq  $loadBalancingRuleId } | Select-Object -First 1
-				$loadBalancerBackendPorts += $loadBalancingRule.BackendPort;
-			};   
-		}
-		
-		#If no ports open, Pass the TCP
-		if($loadBalancerBackendPorts.Count -eq 0)
+		if($this.IsSDKAvailable -eq $true)
 		{
-			$controlResult.AddMessage([VerificationResult]::Passed,"No ports enabled.")  
-			$controlResultList += $controlResult      
-		}
-		#If Ports are open for public in load balancer, map load balancer ports with application endpoint ports and validate if SSL is enabled.
-		else
-		{
-			$controlResult.AddMessage("List of publicly exposed port",$loadBalancerBackendPorts)        
-         
-			if($this.ApplicationList)
-			{
-				$this.ApplicationList | 
-				ForEach-Object{
-					$serviceFabricApplication = $_
-					Get-ServiceFabricServiceType -ApplicationTypeName $serviceFabricApplication.ApplicationTypeName -ApplicationTypeVersion $serviceFabricApplication.ApplicationTypeVersion | 
-					ForEach-Object{
-						$currentService = $_
-						$serviceManifest = [xml](Get-ServiceFabricServiceManifest -ApplicationTypeName $serviceFabricApplication.ApplicationTypeName -ApplicationTypeVersion $serviceFabricApplication.ApplicationTypeVersion -ServiceManifestName $_.ServiceManifestName)
-
-						$serviceManifest.ServiceManifest.Resources.Endpoints.ChildNodes | 
-						ForEach-Object{
-							$endpoint = $_
-							$serviceTypeName = $currentService.ServiceTypeName
-							[ControlResult] $childControlResult = $this.CreateControlResult($serviceTypeName +"_" + $endpoint.Name);  
-                    
-							if($null -eq $endpoint.Port)
-							{
-								#Add message
-								$childControlResult.AddMessage([VerificationResult]::Passed) 
-							}
-							else
-							{
-								if($loadBalancerBackendPorts.Contains($endpoint.Port) )
-								{                      
-									if($endpoint.Protocol -eq "https"){  $controlResult.AddMessage([VerificationResult]::Passed,"Endpoint is protected with SSL") }
-									elseif($endpoint.Protocol -eq "http"){  $controlResult.AddMessage([VerificationResult]::Failed,"Endpoint is not protected with SSL") }
-									else {  $controlResult.AddMessage([VerificationResult]::Verify,"Verify if endpoint is protected with SSL",$endpoint) }                            
-								}
-								else
-								{                        
-									$controlResult.AddMessage([VerificationResult]::Passed,"Endpoint is not publicly opened")
-								}
-							}  
-							$controlResultList += $childControlResult 
-						}                   
-					}
-				}             
+			$loadBalancerBackendPorts = @()
+			$loadBalancerResources = $this.GetLinkedResources("Microsoft.Network/loadBalancers")
+			#Collect all open ports on load balancer  
+			$loadBalancerResources | ForEach-Object{
+				$loadBalancerResource = Get-AzureRmLoadBalancer -Name $_.Name -ResourceGroupName $_.ResourceGroupName
+				$loadBalancingRules = @($loadBalancerResource.FrontendIpConfigurations | ? { $null -ne $_.PublicIpAddress } | ForEach-Object { $_.LoadBalancingRules })
+			
+				$loadBalancingRules | ForEach-Object {
+					$loadBalancingRuleId = $_.Id;
+					$loadBalancingRule = $loadBalancerResource.LoadBalancingRules | ? { $_.Id -eq  $loadBalancingRuleId } | Select-Object -First 1
+					$loadBalancerBackendPorts += $loadBalancingRule.BackendPort;
+				};   
 			}
+			
+			#If no ports open, Pass the TCP
+			if($loadBalancerBackendPorts.Count -eq 0)
+			{
+				$controlResult.AddMessage([VerificationResult]::Passed,"No ports enabled.")  
+				$controlResultList += $controlResult      
+			}
+			#If Ports are open for public in load balancer, map load balancer ports with application endpoint ports and validate if SSL is enabled.
 			else
 			{
-				$controlResult.AddMessage([VerificationResult]::Passed,"No service found.")
-				$controlResultList += $controlResult
-			}    
-		} 
+				$controlResult.AddMessage("List of publicly exposed port",$loadBalancerBackendPorts)   
+				#### added by tashuk
+				$sfCluster = $null       
+				$uri = ([System.Uri]$this.ResourceObject.Properties.managementEndpoint).Host                
+				$primaryNodeType = $this.ResourceObject.Properties.nodeTypes | Where-Object { $_.isPrimary -eq $true }
+				$CertThumbprint= $this.ResourceObject.Properties.certificate.thumbprint	
+				$ClusterConnectionUri = $uri +":"+ $primaryNodeType.clientConnectionEndpointPort     
+				$sfCluster = Connect-serviceFabricCluster -ConnectionEndpoint $ClusterConnectionUri -KeepAliveIntervalInSec 120 -X509Credential -ServerCertThumbprint $CertThumbprint -FindType FindByThumbprint -FindValue $CertThumbprint -StoreLocation $this.CertStoreLocation -StoreName $this.CertStoreName 
+				$temp =  Get-ServiceFabricClusterConnection -ErrorAction SilentlyContinue
+				####
+				if($this.ApplicationList)
+				{
+					$this.ApplicationList | 
+					ForEach-Object{
+						$serviceFabricApplication = $_
+						Get-ServiceFabricServiceType -ApplicationTypeName $serviceFabricApplication.ApplicationTypeName -ApplicationTypeVersion $serviceFabricApplication.ApplicationTypeVersion | 
+						ForEach-Object{
+							$currentService = $_
+							$serviceManifest = [xml](Get-ServiceFabricServiceManifest -ApplicationTypeName $serviceFabricApplication.ApplicationTypeName -ApplicationTypeVersion $serviceFabricApplication.ApplicationTypeVersion -ServiceManifestName $_.ServiceManifestName)
+						try
+						{
+							$serviceManifest.ServiceManifest.Resources.Endpoints.ChildNodes | 
+							ForEach-Object{
+								$endpoint = $_
+								$serviceTypeName = $currentService.ServiceTypeName
+								[ControlResult] $childControlResult = $this.CreateControlResult($serviceTypeName +"_" + $endpoint.Name);  
+						
+								if(-not [Helpers]::CheckMember($endpoint,"Port"))
+								{
+									#Add message
+									$childControlResult.AddMessage([VerificationResult]::Passed) 
+								}
+								else
+								{
+									if($loadBalancerBackendPorts.Contains($endpoint.Port) )
+									{                      
+										if($endpoint.Protocol -eq "https"){  $controlResult.AddMessage([VerificationResult]::Passed,"Endpoint is protected with SSL") }
+										elseif($endpoint.Protocol -eq "http"){  $controlResult.AddMessage([VerificationResult]::Failed,"Endpoint is not protected with SSL") }
+										else {  $childControlResult.AddMessage([VerificationResult]::Verify,"Verify if endpoint is protected with SSL",$endpoint) }                            
+									}
+									else
+									{                        
+										$childControlResult.AddMessage([VerificationResult]::Passed,"Endpoint is not publicly opened")
+									}
+								}  
+								$controlResultList += $childControlResult 
+							}      
+						}catch
+						{
+							$_
+						}          
+						}
+					}             
+				}
+				else
+				{
+					$controlResult.AddMessage([VerificationResult]::Passed,"No service found.")
+					$controlResultList += $controlResult
+				}    
+			} 
+
+		}else{
+			$controlResult.AddMessage([VerificationResult]::Manual,"Service Fabric SDK not found in user machine.")  
+			$controlResultList += $controlResult 
+		}
+		
 		return $controlResultList        
 	}
 
@@ -392,7 +444,11 @@ class ServiceFabric : SVTBase
 			$serviceFabricCertificate = $this.ResourceObject.Properties.certificate              
             $this.PublishCustomMessage("Service Fabric is secure")
             $CertThumbprint= $this.ResourceObject.Properties.certificate.thumbprint
-            $serviceFabricAAD =$this.ResourceObject.Properties.azureActiveDirectory
+			$serviceFabricAAD = $null
+			if([Helpers]::CheckMember($this.ResourceObject.Properties,"azureActiveDirectory" ))
+			{
+			 $serviceFabricAAD =$this.ResourceObject.Properties.azureActiveDirectory
+			}     
             if($null -ne $serviceFabricAAD)
             {
                 try
@@ -409,12 +465,14 @@ class ServiceFabric : SVTBase
             else
             {
                 $this.PublishCustomMessage("Validating if cluster certificate present on machine...")
-                $IsCertPresent = (Get-ChildItem -Path Cert:\$this.CertStoreLocation\$this.CertStoreName | Where-Object {$_.Thumbprint -eq $CertThumbprint }).Count                    
+                $IsCertPresent = (Get-ChildItem -Path "Cert:\$($this.CertStoreLocation)\$($this.CertStoreName)" | Where-Object {$_.Thumbprint -eq $CertThumbprint }| Measure-Object).Count                    
                 if($IsCertPresent)
                 {
                     $this.PublishCustomMessage("Connecting Service Fabric using certificate")
-                    $sfCluster = Connect-serviceFabricCluster -ConnectionEndpoint $ClusterConnectionUri -KeepAliveIntervalInSec 10 -X509Credential -ServerCertThumbprint $CertThumbprint -FindType FindByThumbprint -FindValue $CertThumbprint -StoreLocation $this.CertStoreLocation -StoreName $this.CertStoreName 
-                }
+                    $sfCluster = Connect-serviceFabricCluster -ConnectionEndpoint $ClusterConnectionUri -KeepAliveIntervalInSec 120 -X509Credential -ServerCertThumbprint $CertThumbprint -FindType FindByThumbprint -FindValue $CertThumbprint -StoreLocation $this.CertStoreLocation -StoreName $this.CertStoreName 
+					$temp =  Get-ServiceFabricClusterConnection -ErrorAction SilentlyContinue
+					$this.ApplicationList = Get-ServiceFabricApplication -ErrorAction SilentlyContinue
+				}
                 else
                 {
 					throw ([SuppressedException]::new(("Cannot connect with Service Fabric due to unavailability of cluster certificate in local machine. Validate cluster certificate is present in 'CurrentUser' location."), [SuppressedExceptionType]::InvalidOperation))
