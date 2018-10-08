@@ -197,3 +197,5 @@ ModelManifest.xml
 /src/AzSK.sln
 /src/AzSK.Debug
 /src/AzSK/AzSK.sln
+/src/AzSK/.vscode/launch.json
+/src/Debug.ps1
