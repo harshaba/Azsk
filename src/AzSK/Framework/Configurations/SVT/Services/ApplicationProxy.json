@@ -77,7 +77,7 @@
       },
       {
         "ControlID": "Azure_ApplicationProxy_Config_Lockdown_ConnectorMachine",
-        "Description": "Make sure that the connector machine is secure (patch compliant, anti-malware compliant and monitored) and must be a hardened locked down VM.",
+        "Description": "Connector machine must be a hardened locked down VM and secure (patch compliant, anti-malware compliant and monitored).",
         "Id": "ApplicationProxy150",
         "ControlSeverity": "High",
         "Automated": "No",
