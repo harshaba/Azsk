@@ -76,14 +76,14 @@
         "Enabled": true
       },
       {
-        "ControlID": "Azure_ApplicationProxy_Config_Lockdown_ConnectorMachine",
-        "Description": "Connector machine must be a hardened locked down VM and secure (patch compliant, anti-malware compliant and monitored).",
+        "ControlID": "Azure_ApplicationProxy_SI_Lockdown_ConnectorMachine",
+        "Description": "Use a security hardened, locked down OS image for the connector machine.",
         "Id": "ApplicationProxy150",
         "ControlSeverity": "High",
         "Automated": "No",
         "MethodName": "",
-        "Rationale": "The connector machine is serving as a 'gateway' into the corporate environment allowing endpoint in the cloud access to enteprise data. Using a locked-down, secure baseline configuration ensures that this machine does not get leveraged as an entry point to the downstream application server.",
-        "Recommendation": "Locking down machine isolates connector machine and prevents malfunctioning programs from damaging or snooping on the data on-premise application server.",
+        "Rationale": "The connector machine is serving as a 'gateway' into the corporate environment allowing internet based client endpoints access to enterprise data. Using a locked-down, secure baseline configuration ensures that this machine does not get leveraged as an entry point to attack the applications/corporate network.",
+        "Recommendation": "Use a locked down OS configuration. Ensure that the system is always fully patched, has real-time malware protection enabled, OS firewall and disk encryption turned on, etc. Also, monitor this VM just like you'd monitor a high-value asset.",
            "Tags": [
           "SDL",
           "TCP",
