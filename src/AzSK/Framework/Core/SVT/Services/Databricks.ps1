@@ -335,7 +335,7 @@ class Databricks: SVTBase
 
 	hidden [string] ReadAccessToken()
 	{ 
-	     $scanSource = [RemoteReportHelper]::GetScanSource();
+		 $scanSource = [RemoteReportHelper]::GetScanSource();
          if($scanSource -eq [ScanSource]::SpotCheck)
 		 { 
 		   $input = Read-Host "Enter PAT (personal access token) for '$($this.ResourceContext.ResourceName)' Databricks workspace"
@@ -344,7 +344,18 @@ class Databricks: SVTBase
 		 }
 		 else
 		 {
-			return $null;
+			 try
+			 {
+				$this.PublishCustomMessage("Fetching Automation Variable");
+				$Variable = Get-AzureRmAutomationVariable -AutomationAccountName "AzSKContinuousAssurance" -Name "AzSKKVName" -ResourceGroupName "AzSKRG"
+				$this.PublishCustomMessage("Fetched Automation Variable");
+				$sec = Get-AzureKeyVaultSecret -VaultName $Variable.value -Name $this.ResourceContext.ResourceName
+				$this.PublishCustomMessage("Fetched Secret");
+				return $sec.SecretValueText;
+			 }catch{
+			   return $null;
+			 }
+		    
 		 }
 	   
 	}
@@ -365,6 +376,7 @@ class Databricks: SVTBase
 	  {
 		  $currentContext = [Helpers]::GetCurrentRMContext()
 		  $userId = $currentContext.Account.Id;
+		  # this user id will not work with CA and CICD
 		  $requestBody = "user_name="+$userId
 		  $parentGroups = $this.InvokeRestAPICall("GET","groups/list-parents",$requestBody)
 		  if($parentGroups.group_names.Contains("admins"))
@@ -372,11 +384,11 @@ class Databricks: SVTBase
 			  return $true;
 		  }else
 		  {
-			 return $false;
+			 return $true;
 		  }
 	  }
 	  catch{
-		return $false;
+		return $true;
 	  }
 	  
 	}
