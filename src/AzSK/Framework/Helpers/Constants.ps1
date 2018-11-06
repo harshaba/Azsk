@@ -88,6 +88,7 @@ class Constants
 	}
 
 	static [string] $StorageAccountPreName= "azsk"
+	static [string] $KeyVaultPreName= "azsk-kv"
 	static [string] $AzSKAppFolderPath = $Env:LOCALAPPDATA + "\Microsoft\" + [Constants]::AzSKModuleName
 	static [string] $AzSKLogFolderPath = $Env:LOCALAPPDATA + "\Microsoft\"
 	static [string] $AzSKTempFolderPath = $env:TEMP + "\" + [Constants]::AzSKModuleName + "\"

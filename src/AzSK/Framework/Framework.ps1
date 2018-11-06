@@ -89,6 +89,7 @@ catch
 
 . $PSScriptRoot\Helpers\ResourceHelper.ps1
 . $PSScriptRoot\Helpers\UserSubscriptionDataHelper.ps1
+. $PSScriptRoot\Helpers\UserSubscriptionSecretHelper.ps1
 . $PSScriptRoot\Abstracts\ComplianceBase.ps1
 . $PSScriptRoot\Helpers\ComplianceReportHelper.ps1
 
@@ -135,11 +136,15 @@ catch
     ForEach-Object {
     . $_.FullName
 }
-(Get-ChildItem -Path "$PSScriptRoot\Core\SubscriptionSecurity\" -Recurse -File -Exclude 'SubscriptionSecurity.ps1') |
+
+[string []] $fileToExclude = @('SubscriptionSecurity.ps1','BaseSetup.ps1')
+
+(Get-ChildItem -Path "$PSScriptRoot\Core\SubscriptionSecurity\" -Recurse -File -Exclude $fileToExclude ) |
     ForEach-Object {
     . $_.FullName
 }
 . $PSScriptRoot\Core\SubscriptionSecurity\SubscriptionSecurity.ps1
+
 
 . $PSScriptRoot\Core\FixControl\FixControlConfigResolver.ps1
 . $PSScriptRoot\Core\FixControl\ControlSecurityFixes.ps1
@@ -159,3 +164,4 @@ catch
 . $PSScriptRoot\Core\ARMChecker\ARMCheckerStatus.ps1
 
 . $PSScriptRoot\Core\PolicySetup\PolicySetup.ps1
+. $PSScriptRoot\Core\SubscriptionSecurity\BaseSetup.ps1

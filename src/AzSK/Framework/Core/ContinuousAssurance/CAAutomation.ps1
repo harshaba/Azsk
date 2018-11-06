@@ -444,6 +444,13 @@ class CCAutomation: CommandBase
 			#update version tag
 			$this.SetRunbookVersionTag()
 
+			# Grant CA SPN Access over Key Vault
+
+			if(!$this.IsMultiCAMode)
+			{
+
+			}
+
 			#successfully installed
 			$this.cleanupFlag = $false
 			$this.PublishCustomMessage([Constants]::SingleDashLine + "`r`nCompleted setup phase-1 for AzSK Continuous Assurance.`r`n"+
@@ -3769,6 +3776,33 @@ class CCAutomation: CommandBase
 		}catch
 		{
 			$this.PublishCustomMessage("Unable to remove Webhook settings.")
+		}
+
+
+	}
+	hidden [void] GrantCASPNAccessOnKeyVault([string] $AppId)
+	{
+		$WebhookUrl=$this.GetWebhookURL()
+		try
+		{
+			if($null -ne $WebhookUrl)
+			{
+				$this.PublishCustomMessage("Removing Webhook settings... ")
+				Remove-AzureRmAutomationVariable -AutomationAccountName $this.AutomationAccount.Name `
+				-ResourceGroupName $this.AutomationAccount.ResourceGroup -Name "WebhookUrl" -ErrorAction SilentlyContinue			
+				Remove-AzureRmAutomationVariable -AutomationAccountName $this.AutomationAccount.Name `
+				-ResourceGroupName $this.AutomationAccount.ResourceGroup -Name "WebhookAuthZHeaderName" -ErrorAction SilentlyContinue		
+				Remove-AzureRmAutomationVariable -AutomationAccountName $this.AutomationAccount.Name `
+				-ResourceGroupName $this.AutomationAccount.ResourceGroup -Name "WebhookAuthZHeaderValue" -ErrorAction SilentlyContinue		
+				$this.PublishCustomMessage("Completed")
+			}
+			else
+			{
+				$this.PublishCustomMessage("Unable to find webhook url for current Automation Account ")
+			}
+		}catch
+		{
+			$this.PublishCustomMessage("Unable to grant CA SPN access over key vault.")
 		}
 
 

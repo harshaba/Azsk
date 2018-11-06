@@ -143,6 +143,7 @@
         'Clear-AzSKSessionState',
 		'Update-AzSKPersistedState'
         'Get-AzSKSecurityRecommendationReport'
+		'Install-AzSKResources'
     )
 
     # Cmdlets to export from this module

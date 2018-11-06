@@ -6,6 +6,7 @@ class UserSubscriptionDataHelper: AzSKRoot
 	hidden static [string] $ResourceGroupLocation = [ConfigurationManager]::GetAzSKConfigData().AzSKLocation
 	hidden static [string] $AutomationAccountName = [Constants]::AutomationAccountName
 	hidden static [string] $StorageResourceType = "Microsoft.Storage/storageAccounts";
+	hidden static [string] $KeyVaultResourceType = "Microsoft.KeyVault/vaults";
 
 
 	UserSubscriptionDataHelper([string] $subscriptionId):
@@ -42,6 +43,9 @@ class UserSubscriptionDataHelper: AzSKRoot
 		}
 		return $storageAccount
 	}
+
+
+
 	[PSObject] GetUserSubscriptionStorageContainer([string] $StorageContainerType)
 	{
 		return "<containerobject>"

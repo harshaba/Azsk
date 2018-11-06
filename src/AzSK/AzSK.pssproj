@@ -115,6 +115,7 @@
     <Compile Include="Framework\Core\AzSKInfo\EnvironmentInfo.ps1" />
     <Compile Include="Framework\Core\AzSKInfo\PersistedStateInfo.ps1" />
     <Compile Include="Framework\Core\PolicySetup\AzSKStaging-EasyInstaller.ps1" />
+    <Compile Include="Framework\Core\SubscriptionSecurity\BaseSetup.ps1" />
     <Compile Include="Framework\Core\SVT\AzSKCfg\AzSKCfg.ps1" />
     <Compile Include="Framework\Core\SVT\Services\APIConnection.ps1" />
     <Compile Include="Framework\Core\SVT\Services\BotService.ps1" />
@@ -127,6 +128,7 @@
     <Compile Include="Framework\Helpers\OMSHelper.ps1" />
     <Compile Include="Framework\Helpers\ComplianceReportHelper.ps1" />
     <Compile Include="Framework\Helpers\UserSubscriptionDataHelper.ps1" />
+    <Compile Include="Framework\Helpers\UserSubscriptionSecretHelper.ps1" />
     <Compile Include="Framework\Listeners\LocalSubscriptionReport\StorageReport.ps1" />
     <Compile Include="Framework\Models\RemoteReports\CsvOutputModel.ps1" />
     <Compile Include="Framework\Models\RemoteReports\LSRScanResultModel.ps1" />
@@ -281,6 +283,7 @@
     <Compile Include="Framework\Models\SubscriptionCore\ManagementCertificate.ps1" />
     <Compile Include="Framework\Models\SVT\PSCloudService.ps1" />
     <Compile Include="PolicySetup\PolicySetup.ps1" />
+    <Compile Include="SubscriptionSecurity\BaseSetup.ps1" />
     <Compile Include="SubscriptionSecurity\SubscriptionSecurity.ps1" />
     <Compile Include="SubscriptionSecurity\Alerts.ps1" />
     <Compile Include="SubscriptionSecurity\ARMPolicies.ps1" />

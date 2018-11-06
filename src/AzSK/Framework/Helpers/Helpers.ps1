@@ -887,6 +887,52 @@ class Helpers {
       return [Helpers]::NewAzskCompliantStorage($StorageName,[Constants]::NewStorageKind,[string]$ResourceGroup,[string]$Location)
     }
 
+
+	 static [PSObject] NewAzskCompliantKeyVault([string]$KeyVaultName, [string]$ResourceGroup, [string]$Sku, [string]$Location) {
+        $keyvaultObject = $null
+        try {
+            #register resource providers
+            [Helpers]::RegisterResourceProviderIfNotRegistered("Microsoft.KeyVault");
+
+            #create key-vault
+            #$status = Get-AzureRmStorageAccountNameAvailability -Name $StorageName
+			$status = $true
+            if($null -ne $status -and  $status -eq $true)
+            {
+                $newKeyVault = New-AzureRmKeyVault -ResourceGroupName $ResourceGroup `
+                    -Name $KeyVaultName `
+                    -Sku $Sku`
+                    -Location $Location `
+                    -ErrorAction Stop
+
+                $retryAccount = 0
+                do {
+                    $keyvaultObject = Get-AzureRmKeyVault -VaultName $KeyVaultName  -ResourceGroupName $ResourceGroup -ErrorAction SilentlyContinue
+                    Start-Sleep -seconds 2
+                    $retryAccount++
+                }while (!$keyvaultObject -and $retryAccount -ne 6)
+
+                if ($keyvaultObject) {                                       
+
+				    # TODO: 
+                    #set diagnostics on
+                }
+            }
+            else
+            {
+                throw ([SuppressedException]::new(("The specified name for the key vault is not available. Please rerun this command to try a different name."), [SuppressedExceptionType]::Generic));          
+            }
+        }
+        catch {
+            [EventBase]::PublishGenericException($_);
+            $keyvaultObject = $null
+        }
+        return $keyvaultObject
+    }
+    static [PSObject] NewAzskCompliantKeyVault([string]$KeyVaultName, [string]$ResourceGroup, [string]$Location) {
+      return [Helpers]::NewAzskCompliantKeyVault($KeyVaultName,[string]$ResourceGroup,"Standard",[string]$Location)
+    }
+
     
     static [string] FetchTagsString([PSObject]$TagsHashTable)
     {
